@@ -34,6 +34,20 @@ const DashboardHome = () => {
     return last.map((s, i) => ({ name: `#${i + 1}`, score: s.score }));
   }, [sessions]);
 
+  const byRole = useMemo(() => {
+    const map: Record<string, { role: string; count: number; total: number; best: number }> = {};
+    sessions.forEach((s) => {
+      const k = s.role;
+      if (!map[k]) map[k] = { role: k, count: 0, total: 0, best: 0 };
+      map[k].count += 1;
+      map[k].total += s.score;
+      map[k].best = Math.max(map[k].best, s.score);
+    });
+    return Object.values(map)
+      .map((r) => ({ ...r, avg: Math.round(r.total / r.count) }))
+      .sort((a, b) => b.count - a.count);
+  }, [sessions]);
+
   const statCards = [
     { label: "Average Score", value: `${stats.avg}%`, icon: Trophy, color: "from-primary to-primary-glow" },
     { label: "Interviews", value: stats.count, icon: Flame, color: "from-[hsl(38,92%,55%)] to-[hsl(25,95%,60%)]" },
