@@ -3,28 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Sparkles, ArrowRight, CheckCircle2, AlertCircle, Lightbulb } from "lucide-react";
+import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Lightbulb } from "lucide-react";
 import { generateQuestions, evaluateAnswer, saveSession, type InterviewSession } from "@/lib/interview";
+import { departments, type Department, type Role } from "@/lib/roles";
 import { toast } from "@/hooks/use-toast";
 
-type Stage = "setup" | "interview" | "results";
+type Stage = "department" | "role" | "config" | "interview" | "results";
 type Feedback = ReturnType<typeof evaluateAnswer>;
-
-const roles = ["Software Engineer", "Data Analyst", "Product Manager", "Designer", "Marketing Manager", "Consultant"];
 
 const Interview = () => {
   const navigate = useNavigate();
-  const [stage, setStage] = useState<Stage>("setup");
-  const [role, setRole] = useState("Software Engineer");
-  const [customRole, setCustomRole] = useState("");
-  const [type, setType] = useState<"Technical" | "Behavioral" | "HR">("Behavioral");
+  const [stage, setStage] = useState<Stage>("department");
+  const [department, setDepartment] = useState<Department | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
+  const [type, setType] = useState<"Technical" | "Behavioral" | "HR">("Technical");
   const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
 
   const [questions, setQuestions] = useState<string[]>([]);
@@ -33,10 +28,9 @@ const Interview = () => {
   const [answer, setAnswer] = useState("");
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
 
-  const effectiveRole = customRole.trim() || role;
-
   const start = () => {
-    const qs = generateQuestions(effectiveRole, type, difficulty);
+    if (!role) return;
+    const qs = generateQuestions(role.name, type, difficulty, role.focus ?? []);
     setQuestions(qs);
     setCurrent(0);
     setAnswers([]);
@@ -61,7 +55,7 @@ const Interview = () => {
       const avgScore = Math.round(nextFeedbacks.reduce((s, f) => s + f.score, 0) / nextFeedbacks.length);
       const session: InterviewSession = {
         id: crypto.randomUUID(),
-        role: effectiveRole,
+        role: role!.name,
         type,
         difficulty,
         score: avgScore,
@@ -76,32 +70,94 @@ const Interview = () => {
     }
   };
 
-  if (stage === "setup") {
+  // ===== Stage: Department selection =====
+  if (stage === "department") {
+    return (
+      <div className="max-w-5xl mx-auto animate-fade-in-up">
+        <div className="mb-8">
+          <Badge className="mb-3"><Sparkles className="h-3 w-3 mr-1" /> Step 1 of 3</Badge>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Choose your field</h1>
+          <p className="text-muted-foreground">Select the academic field or career domain that matches your goals.</p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {departments.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => { setDepartment(d); setStage("role"); }}
+              className="text-left group"
+            >
+              <Card className="p-6 h-full bg-gradient-card border-border/60 hover:border-primary/50 hover:shadow-elegant transition-smooth group-hover:-translate-y-1">
+                <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${d.gradient} flex items-center justify-center mb-4 shadow-glow`}>
+                  <d.icon className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">{d.name}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{d.description}</p>
+                <p className="text-xs text-muted-foreground">{d.roles.length} roles available</p>
+              </Card>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ===== Stage: Role selection =====
+  if (stage === "role" && department) {
+    return (
+      <div className="max-w-5xl mx-auto animate-fade-in-up">
+        <Button variant="ghost" size="sm" onClick={() => setStage("department")} className="mb-4">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+        <div className="mb-8">
+          <Badge className="mb-3"><Sparkles className="h-3 w-3 mr-1" /> Step 2 of 3</Badge>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Pick your job role</h1>
+          <p className="text-muted-foreground">In <span className="text-foreground font-medium">{department.name}</span></p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {department.roles.map((r) => (
+            <button
+              key={r.name}
+              onClick={() => { setRole(r); setStage("config"); }}
+              className="text-left group"
+            >
+              <Card className="p-6 h-full bg-gradient-card border-border/60 hover:border-primary/50 hover:shadow-elegant transition-smooth group-hover:-translate-y-1">
+                <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${department.gradient} flex items-center justify-center mb-4 shadow-glow`}>
+                  <r.icon className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <h3 className="font-semibold mb-2">{r.name}</h3>
+                {r.focus && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.focus.slice(0, 3).map((f) => (
+                      <Badge key={f} variant="secondary" className="text-[10px] font-normal">{f}</Badge>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ===== Stage: Config (type + difficulty) =====
+  if (stage === "config" && department && role) {
     return (
       <div className="max-w-3xl mx-auto animate-fade-in-up">
+        <Button variant="ghost" size="sm" onClick={() => setStage("role")} className="mb-4">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
         <div className="mb-8">
-          <Badge className="mb-3"><Sparkles className="h-3 w-3 mr-1" /> New Interview</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Let's set up your mock interview</h1>
-          <p className="text-muted-foreground">Tailor the experience to your target role.</p>
+          <Badge className="mb-3"><Sparkles className="h-3 w-3 mr-1" /> Step 3 of 3</Badge>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Customize your interview</h1>
+          <p className="text-muted-foreground">
+            {department.name} • <span className="text-foreground font-medium">{role.name}</span>
+          </p>
         </div>
 
         <Card className="p-6 md:p-8 bg-gradient-card border-border/60 space-y-6">
-          <div className="space-y-2">
-            <Label>Job role</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {roles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Or type a custom role..."
-              value={customRole}
-              onChange={(e) => setCustomRole(e.target.value)}
-              className="mt-2"
-            />
-          </div>
-
           <div className="space-y-2">
             <Label>Interview type</Label>
             <div className="grid grid-cols-3 gap-3">
@@ -149,7 +205,7 @@ const Interview = () => {
     return (
       <div className="max-w-3xl mx-auto animate-fade-in-up">
         <div className="flex items-center justify-between mb-4">
-          <Badge variant="secondary">{type} • {difficulty} • {effectiveRole}</Badge>
+          <Badge variant="secondary">{type} • {difficulty} • {role?.name}</Badge>
           <span className="text-sm text-muted-foreground">Question {current + 1} of {questions.length}</span>
         </div>
         <Progress value={progress} className="mb-6" />
@@ -193,7 +249,7 @@ const Interview = () => {
         <div className="relative text-primary-foreground">
           <p className="text-sm opacity-90 mb-1">Interview complete</p>
           <h1 className="text-4xl md:text-5xl font-bold mb-2">Overall score: {avg}%</h1>
-          <p className="opacity-90">{effectiveRole} • {type} • {difficulty}</p>
+          <p className="opacity-90">{role?.name} • {type} • {difficulty}</p>
         </div>
       </Card>
 
@@ -232,7 +288,7 @@ const Interview = () => {
       ))}
 
       <div className="flex gap-3">
-        <Button variant="outline" size="lg" onClick={() => setStage("setup")}>Practice again</Button>
+        <Button variant="outline" size="lg" onClick={() => setStage("department")}>Practice again</Button>
         <Button variant="hero" size="lg" onClick={() => navigate("/dashboard")}>Back to dashboard</Button>
       </div>
     </div>

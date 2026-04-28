@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Trophy, TrendingUp, Target, Flame, ArrowRight } from "lucide-react";
+import { Sparkles, Trophy, TrendingUp, Target, Flame, ArrowRight, Briefcase } from "lucide-react";
+import { findRole } from "@/lib/roles";
 import { getSessions } from "@/lib/interview";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid
@@ -31,6 +32,20 @@ const DashboardHome = () => {
   const chartData = useMemo(() => {
     const last = [...sessions].reverse().slice(-10);
     return last.map((s, i) => ({ name: `#${i + 1}`, score: s.score }));
+  }, [sessions]);
+
+  const byRole = useMemo(() => {
+    const map: Record<string, { role: string; count: number; total: number; best: number }> = {};
+    sessions.forEach((s) => {
+      const k = s.role;
+      if (!map[k]) map[k] = { role: k, count: 0, total: 0, best: 0 };
+      map[k].count += 1;
+      map[k].total += s.score;
+      map[k].best = Math.max(map[k].best, s.score);
+    });
+    return Object.values(map)
+      .map((r) => ({ ...r, avg: Math.round(r.total / r.count) }))
+      .sort((a, b) => b.count - a.count);
   }, [sessions]);
 
   const statCards = [
@@ -131,6 +146,53 @@ const DashboardHome = () => {
           )}
         </Card>
       </div>
+
+      {/* Per-role performance */}
+      {byRole.length > 0 && (
+        <Card className="p-6 bg-gradient-card border-border/60">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Performance by role</h3>
+              <p className="text-sm text-muted-foreground">Tracked separately for each job role you practice</p>
+            </div>
+            <Briefcase className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {byRole.map((r) => {
+              const meta = findRole(r.role);
+              const Icon = meta?.role.icon ?? Briefcase;
+              const gradient = meta?.department.gradient ?? "from-primary to-primary-glow";
+              return (
+                <div key={r.role} className="p-4 rounded-xl bg-background/50 border border-border/50 hover:border-primary/40 transition-smooth">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-glow shrink-0`}>
+                      <Icon className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{r.role}</p>
+                      {meta && <p className="text-xs text-muted-foreground truncate">{meta.department.name}</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg</p>
+                      <p className="text-lg font-bold">{r.avg}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Best</p>
+                      <p className="text-lg font-bold">{r.best}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Runs</p>
+                      <p className="text-lg font-bold">{r.count}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

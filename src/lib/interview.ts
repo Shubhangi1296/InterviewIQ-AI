@@ -26,22 +26,34 @@ export const saveSession = (s: InterviewSession) => {
 };
 
 // Placeholder: generate questions for a role/type. Swap with AI call later.
-export const generateQuestions = (role: string, type: string, difficulty: string): string[] => {
+export const generateQuestions = (
+  role: string,
+  type: string,
+  difficulty: string,
+  focus: string[] = [],
+): string[] => {
+  const f1 = focus[0] ?? role.toLowerCase();
+  const f2 = focus[1] ?? "your core skills";
+  const f3 = focus[2] ?? "real-world scenarios";
+
   const base: Record<string, string[]> = {
     Technical: [
-      `Explain a challenging ${role} problem you've solved and the tradeoffs you considered.`,
-      `Walk through how you would design a scalable system for a ${role} use case.`,
-      `What data structures would you use to optimize a hot path in a ${role} product?`,
+      `As a ${role}, explain a challenging problem involving ${f1} you've solved and the tradeoffs you considered.`,
+      `Walk me through how you would approach a real ${role} task that requires ${f2}.`,
+      `Describe how you'd apply ${f3} to improve outcomes in a ${role} project.`,
+      `What tools, frameworks, or methods are essential for a ${role}, and why?`,
     ],
     Behavioral: [
-      `Tell me about a time you disagreed with a teammate. How did you resolve it?`,
-      `Describe a project where you had to learn something new quickly as a ${role}.`,
-      `Tell me about a time you failed. What did you learn?`,
+      `Tell me about a time you disagreed with a teammate on a ${role} project. How did you resolve it?`,
+      `Describe a situation where you had to learn ${f1} quickly as a ${role}.`,
+      `Tell me about a time you failed in a ${role} context. What did you learn?`,
+      `Share an example of delivering results under pressure as a ${role}.`,
     ],
     HR: [
       `Why do you want to work as a ${role} at our company?`,
-      `Where do you see yourself in 5 years?`,
-      `What motivates you most in your work?`,
+      `Where do you see yourself in 5 years within the ${role} path?`,
+      `What motivates you most in your work as a ${role}?`,
+      `How do you handle feedback and continuous learning as a ${role}?`,
     ],
   };
   const list = base[type] ?? base.Behavioral;
