@@ -146,6 +146,53 @@ const DashboardHome = () => {
           )}
         </Card>
       </div>
+
+      {/* Per-role performance */}
+      {byRole.length > 0 && (
+        <Card className="p-6 bg-gradient-card border-border/60">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Performance by role</h3>
+              <p className="text-sm text-muted-foreground">Tracked separately for each job role you practice</p>
+            </div>
+            <Briefcase className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {byRole.map((r) => {
+              const meta = findRole(r.role);
+              const Icon = meta?.role.icon ?? Briefcase;
+              const gradient = meta?.department.gradient ?? "from-primary to-primary-glow";
+              return (
+                <div key={r.role} className="p-4 rounded-xl bg-background/50 border border-border/50 hover:border-primary/40 transition-smooth">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-glow shrink-0`}>
+                      <Icon className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{r.role}</p>
+                      {meta && <p className="text-xs text-muted-foreground truncate">{meta.department.name}</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg</p>
+                      <p className="text-lg font-bold">{r.avg}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Best</p>
+                      <p className="text-lg font-bold">{r.best}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Runs</p>
+                      <p className="text-lg font-bold">{r.count}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
