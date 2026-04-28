@@ -51,9 +51,8 @@ const Landing = () => {
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button variant="hero" size="xl" asChild>
-                  <Link to="/signup">Get Started Free <ArrowRight className="h-5 w-5" /></Link>
+                  <Link to="/signup">Get Started <ArrowRight className="h-5 w-5" /></Link>
                 </Button>
-                <Button variant="outline" size="xl">Book Demo</Button>
               </div>
               <div className="mt-10 flex items-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> No credit card</div>
