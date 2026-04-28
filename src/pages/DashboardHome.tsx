@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Trophy, TrendingUp, Target, Flame, ArrowRight } from "lucide-react";
+import { Sparkles, Trophy, TrendingUp, Target, Flame, ArrowRight, Briefcase } from "lucide-react";
+import { findRole } from "@/lib/roles";
 import { getSessions } from "@/lib/interview";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid
