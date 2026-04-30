@@ -32,10 +32,12 @@ export async function getAll<T = unknown>(
   opts: ListOptions = {},
 ): Promise<T[]> {
   log("getAll", table, opts);
-  let q = supabase.from(table).select("*");
+  // Cast to any to keep this generic helper tractable for TS across all tables.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = supabase.from(table).select("*");
   if (opts.filters) {
     for (const [k, v] of Object.entries(opts.filters)) {
-      q = q.eq(k, v as never);
+      q = q.eq(k, v);
     }
   }
   if (opts.orderBy) {
@@ -62,11 +64,9 @@ export async function createRecord<T = unknown>(
   payload: Record<string, unknown>,
 ): Promise<T> {
   log("create", table);
-  const { data, error } = await supabase
-    .from(table)
-    .insert(payload as never)
-    .select()
-    .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client: any = supabase.from(table);
+  const { data, error } = await client.insert(payload).select().single();
   if (error) throw error;
   return data as T;
 }
@@ -77,12 +77,9 @@ export async function updateRecord<T = unknown>(
   patch: Record<string, unknown>,
 ): Promise<T> {
   log("update", table, { id });
-  const { data, error } = await supabase
-    .from(table)
-    .update(patch as never)
-    .eq("id", id)
-    .select()
-    .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client: any = supabase.from(table);
+  const { data, error } = await client.update(patch).eq("id", id).select().single();
   if (error) throw error;
   return data as T;
 }
