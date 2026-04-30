@@ -266,8 +266,8 @@ const Interview = () => {
           />
           <div className="flex items-center justify-between mt-4">
             <span className="text-xs text-muted-foreground">{answer.trim().split(/\s+/).filter(Boolean).length} words</span>
-            <Button variant="hero" onClick={submitAnswer}>
-              {current + 1 === questions.length ? "Finish" : "Next question"} <ArrowRight className="h-4 w-4" />
+            <Button variant="hero" onClick={submitAnswer} disabled={submitting}>
+              {submitting ? "Saving..." : current + 1 === questions.length ? "Finish" : "Next question"} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </Card>
