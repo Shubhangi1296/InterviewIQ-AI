@@ -25,10 +25,11 @@ export async function getAll<T = Record<string, unknown>>(
   opts: ListOptions = {},
 ): Promise<T[]> {
   log("getAll", table, opts);
-  let q = supabase.from(table).select(opts.select ?? "*");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = (supabase.from(table) as any).select(opts.select ?? "*");
   if (opts.filters) {
     for (const [k, v] of Object.entries(opts.filters)) {
-      q = v === null ? q.is(k, null) : q.eq(k, v as never);
+      q = v === null ? q.is(k, null) : q.eq(k, v);
     }
   }
   if (opts.orderBy) {
