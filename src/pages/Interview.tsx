@@ -7,9 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Lightbulb } from "lucide-react";
-import { generateQuestions, evaluateAnswer, saveSession, type InterviewSession } from "@/lib/interview";
+import { generateQuestions, evaluateAnswer } from "@/lib/interview";
 import { departments, type Department, type Role } from "@/lib/roles";
 import { toast } from "@/hooks/use-toast";
+import {
+  createInterviewSession, addQuestions, addResponse, finalizeSession, refreshMyPerformance,
+  type DBQuestion,
+} from "@/services/interviews";
 
 type Stage = "department" | "role" | "config" | "interview" | "results";
 type Feedback = ReturnType<typeof evaluateAnswer>;
@@ -23,50 +27,81 @@ const Interview = () => {
   const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
 
   const [questions, setQuestions] = useState<string[]>([]);
+  const [dbQuestions, setDbQuestions] = useState<DBQuestion[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [answer, setAnswer] = useState("");
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const start = () => {
-    if (!role) return;
+  const start = async () => {
+    if (!role || !department) return;
     const qs = generateQuestions(role.name, type, difficulty, role.focus ?? []);
-    setQuestions(qs);
-    setCurrent(0);
-    setAnswers([]);
-    setFeedbacks([]);
-    setAnswer("");
-    setStage("interview");
+    try {
+      const session = await createInterviewSession({
+        role: role.name,
+        field_category: department.name,
+        interview_type: type,
+        difficulty_level: difficulty,
+      });
+      const created = await addQuestions(
+        session.id,
+        qs.map((q) => ({ question_text: q, question_type: type, difficulty_level: difficulty })),
+      );
+      setSessionId(session.id);
+      setQuestions(qs);
+      setDbQuestions(created.sort((a, b) => a.order_index - b.order_index));
+      setCurrent(0);
+      setAnswers([]);
+      setFeedbacks([]);
+      setAnswer("");
+      setStage("interview");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to start";
+      toast({ title: "Could not start interview", description: msg, variant: "destructive" });
+    }
   };
 
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (answer.trim().length < 10) {
       toast({ title: "Answer too short", description: "Please write at least a few sentences.", variant: "destructive" });
       return;
     }
+    if (!sessionId || !dbQuestions[current]) return;
+    setSubmitting(true);
     const fb = evaluateAnswer(answer);
     const nextAnswers = [...answers, answer];
     const nextFeedbacks = [...feedbacks, fb];
-    setAnswers(nextAnswers);
-    setFeedbacks(nextFeedbacks);
-    setAnswer("");
 
-    if (current + 1 >= questions.length) {
-      const avgScore = Math.round(nextFeedbacks.reduce((s, f) => s + f.score, 0) / nextFeedbacks.length);
-      const session: InterviewSession = {
-        id: crypto.randomUUID(),
-        role: role!.name,
-        type,
-        difficulty,
-        score: avgScore,
-        strengths: [...new Set(nextFeedbacks.flatMap((f) => f.strengths))],
-        weaknesses: [...new Set(nextFeedbacks.flatMap((f) => f.weaknesses))],
-        date: new Date().toISOString(),
-      };
-      saveSession(session);
-      setStage("results");
-    } else {
-      setCurrent(current + 1);
+    try {
+      await addResponse({
+        session_id: sessionId,
+        question_id: dbQuestions[current].id,
+        user_answer: answer,
+        ai_score: fb.score,
+        feedback: fb.suggestion,
+        strengths: fb.strengths,
+        weaknesses: fb.weaknesses,
+      });
+
+      setAnswers(nextAnswers);
+      setFeedbacks(nextFeedbacks);
+      setAnswer("");
+
+      if (current + 1 >= questions.length) {
+        const avgScore = Math.round(nextFeedbacks.reduce((s, f) => s + f.score, 0) / nextFeedbacks.length);
+        await finalizeSession(sessionId, avgScore);
+        await refreshMyPerformance();
+        setStage("results");
+      } else {
+        setCurrent(current + 1);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Save failed";
+      toast({ title: "Could not save answer", description: msg, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
   };
 
