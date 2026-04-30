@@ -14,7 +14,200 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interview_sessions: {
+        Row: {
+          created_at: string
+          difficulty_level: string
+          field_category: string | null
+          id: string
+          interview_type: string
+          role: string
+          session_date: string
+          total_score: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty_level: string
+          field_category?: string | null
+          id?: string
+          interview_type: string
+          role: string
+          session_date?: string
+          total_score?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty_level?: string
+          field_category?: string | null
+          id?: string
+          interview_type?: string
+          role?: string
+          session_date?: string
+          total_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      performance_tracking: {
+        Row: {
+          average_score: number | null
+          id: string
+          progress_status: string | null
+          strongest_area: string | null
+          total_sessions: number | null
+          updated_at: string
+          user_id: string
+          weakest_area: string | null
+        }
+        Insert: {
+          average_score?: number | null
+          id?: string
+          progress_status?: string | null
+          strongest_area?: string | null
+          total_sessions?: number | null
+          updated_at?: string
+          user_id: string
+          weakest_area?: string | null
+        }
+        Update: {
+          average_score?: number | null
+          id?: string
+          progress_status?: string | null
+          strongest_area?: string | null
+          total_sessions?: number | null
+          updated_at?: string
+          user_id?: string
+          weakest_area?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          field_category: string | null
+          full_name: string | null
+          id: string
+          selected_job_role: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          field_category?: string | null
+          full_name?: string | null
+          id: string
+          selected_job_role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          field_category?: string | null
+          full_name?: string | null
+          id?: string
+          selected_job_role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      questions: {
+        Row: {
+          created_at: string
+          difficulty_level: string | null
+          id: string
+          order_index: number
+          question_text: string
+          question_type: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty_level?: string | null
+          id?: string
+          order_index?: number
+          question_text: string
+          question_type?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty_level?: string | null
+          id?: string
+          order_index?: number
+          question_text?: string
+          question_type?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responses: {
+        Row: {
+          ai_score: number | null
+          created_at: string
+          feedback: string | null
+          id: string
+          question_id: string
+          session_id: string
+          strengths: string[] | null
+          user_answer: string | null
+          user_id: string
+          weaknesses: string[] | null
+        }
+        Insert: {
+          ai_score?: number | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          question_id: string
+          session_id: string
+          strengths?: string[] | null
+          user_answer?: string | null
+          user_id: string
+          weaknesses?: string[] | null
+        }
+        Update: {
+          ai_score?: number | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          question_id?: string
+          session_id?: string
+          strengths?: string[] | null
+          user_answer?: string | null
+          user_id?: string
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
