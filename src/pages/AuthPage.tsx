@@ -1,48 +1,83 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
-import { Sparkles, Github, Chrome } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/services/auth";
 
 type Props = { mode: "login" | "signup" };
 
+const signupSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100),
+  email: z.string().trim().email("Invalid email").max(255),
+  password: z.string().min(6, "Password must be at least 6 characters").max(72),
+  confirm: z.string(),
+}).refine((d) => d.password === d.confirm, { message: "Passwords don't match", path: ["confirm"] });
+
+const loginSchema = z.object({
+  email: z.string().trim().email("Invalid email").max(255),
+  password: z.string().min(1, "Password is required").max(72),
+});
+
 const AuthPage = ({ mode }: Props) => {
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
   const [loading, setLoading] = useState(false);
   const isSignup = mode === "signup";
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     const form = new FormData(e.currentTarget);
-    const name = (form.get("name") as string) ?? "Candidate";
-    const email = form.get("email") as string;
 
-    if (isSignup) {
-      const password = form.get("password") as string;
-      const confirm = form.get("confirm") as string;
-      if (password !== confirm) {
-        toast({ title: "Passwords don't match", variant: "destructive" });
-        setLoading(false);
-        return;
+    try {
+      if (isSignup) {
+        const parsed = signupSchema.safeParse({
+          name: form.get("name"),
+          email: form.get("email"),
+          password: form.get("password"),
+          confirm: form.get("confirm"),
+        });
+        if (!parsed.success) {
+          toast({ title: parsed.error.issues[0].message, variant: "destructive" });
+          return;
+        }
+        const { error } = await signUp(parsed.data.email, parsed.data.password, parsed.data.name);
+        if (error) {
+          toast({ title: "Sign up failed", description: error, variant: "destructive" });
+          return;
+        }
+        toast({ title: "Account created", description: "Welcome to InterviewIQ AI!" });
+        navigate("/dashboard");
+      } else {
+        const parsed = loginSchema.safeParse({
+          email: form.get("email"),
+          password: form.get("password"),
+        });
+        if (!parsed.success) {
+          toast({ title: parsed.error.issues[0].message, variant: "destructive" });
+          return;
+        }
+        const { error } = await signIn(parsed.data.email, parsed.data.password);
+        if (error) {
+          toast({ title: "Sign in failed", description: error, variant: "destructive" });
+          return;
+        }
+        toast({ title: "Welcome back" });
+        navigate("/dashboard");
       }
+    } finally {
+      setLoading(false);
     }
-
-    // Placeholder: store user locally until Cloud auth is wired.
-    localStorage.setItem("iq_user", JSON.stringify({ name: isSignup ? name : email.split("@")[0], email }));
-    setTimeout(() => {
-      toast({ title: isSignup ? "Account created" : "Welcome back" });
-      navigate("/dashboard");
-    }, 500);
   };
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Branding panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-gradient-primary text-primary-foreground overflow-hidden">
         <div className="absolute inset-0 bg-gradient-mesh opacity-40" />
         <Logo className="relative text-primary-foreground" />
@@ -56,7 +91,6 @@ const AuthPage = ({ mode }: Props) => {
         <p className="relative text-sm opacity-75">© 2026 InterviewIQ AI</p>
       </div>
 
-      {/* Form panel */}
       <div className="flex items-center justify-center p-6 md:p-12 bg-background">
         <Card className="w-full max-w-md p-8 border-border/60 shadow-card animate-fade-in-up">
           <div className="lg:hidden mb-6"><Logo /></div>
@@ -66,17 +100,6 @@ const AuthPage = ({ mode }: Props) => {
           <p className="text-muted-foreground mb-6">
             {isSignup ? "Start practicing smarter in seconds." : "Sign in to continue your prep."}
           </p>
-
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <Button variant="outline" type="button"><Chrome className="h-4 w-4" /> Google</Button>
-            <Button variant="outline" type="button"><Github className="h-4 w-4" /> GitHub</Button>
-          </div>
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or with email</span>
-            </div>
-          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignup && (
@@ -90,13 +113,8 @@ const AuthPage = ({ mode }: Props) => {
               <Input id="email" name="email" type="email" required placeholder="you@example.com" />
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label htmlFor="password">Password</Label>
-                {!isSignup && (
-                  <button type="button" className="text-xs text-primary hover:underline">Forgot password?</button>
-                )}
-              </div>
-              <Input id="password" name="password" type="password" required placeholder="••••••••" />
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" name="password" type="password" required placeholder="••••••••" minLength={6} />
             </div>
             {isSignup && (
               <div className="space-y-2">
