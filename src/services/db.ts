@@ -47,7 +47,8 @@ export async function getById<T = Record<string, unknown>>(
   idColumn = "id",
 ): Promise<T | null> {
   log("getById", table, { id });
-  const { data, error } = await supabase.from(table).select("*").eq(idColumn, id).maybeSingle();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from(table) as any).select("*").eq(idColumn, id).maybeSingle();
   if (error) throw error;
   return (data as T) ?? null;
 }
@@ -57,7 +58,8 @@ export async function createRecord<T = Record<string, unknown>>(
   values: Record<string, unknown>,
 ): Promise<T> {
   log("create", table, values);
-  const { data, error } = await supabase.from(table).insert(values as never).select().single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from(table) as any).insert(values).select().single();
   if (error) throw error;
   return data as T;
 }
@@ -69,9 +71,9 @@ export async function updateRecord<T = Record<string, unknown>>(
   idColumn = "id",
 ): Promise<T> {
   log("update", table, { id, values });
-  const { data, error } = await supabase
-    .from(table)
-    .update(values as never)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from(table) as any)
+    .update(values)
     .eq(idColumn, id)
     .select()
     .single();
@@ -85,6 +87,7 @@ export async function deleteRecord(
   idColumn = "id",
 ): Promise<void> {
   log("delete", table, { id });
-  const { error } = await supabase.from(table).delete().eq(idColumn, id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from(table) as any).delete().eq(idColumn, id);
   if (error) throw error;
 }
