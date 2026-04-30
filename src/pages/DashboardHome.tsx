@@ -1,42 +1,53 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Trophy, TrendingUp, Target, Flame, ArrowRight, Briefcase } from "lucide-react";
 import { findRole } from "@/lib/roles";
-import { getSessions } from "@/lib/interview";
+import { listMySessions, getMyPerformance, type DBSession, type PerformanceRow } from "@/services/interviews";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid
 } from "recharts";
 
 const DashboardHome = () => {
-  const sessions = getSessions();
+  const [sessions, setSessions] = useState<DBSession[]>([]);
+  const [perf, setPerf] = useState<PerformanceRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([listMySessions(), getMyPerformance()])
+      .then(([s, p]) => { setSessions(s); setPerf(p); })
+      .catch(() => { /* ignore */ })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const scored = useMemo(
+    () => sessions.filter((s) => s.total_score != null).map((s) => ({ ...s, score: Number(s.total_score) })),
+    [sessions],
+  );
 
   const stats = useMemo(() => {
-    if (!sessions.length) return { avg: 0, count: 0, strength: "—", weakness: "—" };
-    const avg = Math.round(sessions.reduce((s, x) => s + x.score, 0) / sessions.length);
-    const freq = (arr: string[]) => {
-      const m: Record<string, number> = {};
-      arr.forEach((a) => (m[a] = (m[a] ?? 0) + 1));
-      return Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
-    };
+    const count = scored.length;
+    const avg = perf?.average_score != null
+      ? Math.round(Number(perf.average_score))
+      : (count ? Math.round(scored.reduce((s, x) => s + x.score, 0) / count) : 0);
     return {
       avg,
-      count: sessions.length,
-      strength: freq(sessions.flatMap((s) => s.strengths)),
-      weakness: freq(sessions.flatMap((s) => s.weaknesses)),
+      count,
+      strength: perf?.strongest_area ?? "—",
+      weakness: perf?.weakest_area ?? "—",
     };
-  }, [sessions]);
+  }, [scored, perf]);
 
   const chartData = useMemo(() => {
-    const last = [...sessions].reverse().slice(-10);
+    const last = [...scored].reverse().slice(-10);
     return last.map((s, i) => ({ name: `#${i + 1}`, score: s.score }));
-  }, [sessions]);
+  }, [scored]);
 
   const byRole = useMemo(() => {
     const map: Record<string, { role: string; count: number; total: number; best: number }> = {};
-    sessions.forEach((s) => {
+    scored.forEach((s) => {
       const k = s.role;
       if (!map[k]) map[k] = { role: k, count: 0, total: 0, best: 0 };
       map[k].count += 1;
@@ -46,12 +57,12 @@ const DashboardHome = () => {
     return Object.values(map)
       .map((r) => ({ ...r, avg: Math.round(r.total / r.count) }))
       .sort((a, b) => b.count - a.count);
-  }, [sessions]);
+  }, [scored]);
 
   const statCards = [
     { label: "Average Score", value: `${stats.avg}%`, icon: Trophy, color: "from-primary to-primary-glow" },
     { label: "Interviews", value: stats.count, icon: Flame, color: "from-[hsl(38,92%,55%)] to-[hsl(25,95%,60%)]" },
-    { label: "Top Strength", value: stats.strength, icon: TrendingUp, color: "from-[hsl(142,71%,45%)] to-[hsl(160,70%,50%)]" },
+    { label: "Strongest Role", value: stats.strength, icon: TrendingUp, color: "from-[hsl(142,71%,45%)] to-[hsl(160,70%,50%)]" },
     { label: "Focus Area", value: stats.weakness, icon: Target, color: "from-[hsl(260,80%,60%)] to-[hsl(280,75%,65%)]" },
   ];
 
@@ -121,7 +132,7 @@ const DashboardHome = () => {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                Complete your first interview to see progress here.
+                {loading ? "Loading..." : "Complete your first interview to see progress here."}
               </div>
             )}
           </div>
@@ -129,20 +140,20 @@ const DashboardHome = () => {
 
         <Card className="p-6 bg-gradient-card border-border/60">
           <h3 className="text-lg font-semibold mb-4">Recent interviews</h3>
-          {sessions.length ? (
+          {scored.length ? (
             <div className="space-y-3">
-              {sessions.slice(0, 5).map((s) => (
+              {scored.slice(0, 5).map((s) => (
                 <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
                   <div className="min-w-0">
                     <p className="font-medium truncate">{s.role}</p>
-                    <p className="text-xs text-muted-foreground">{s.type} • {s.difficulty}</p>
+                    <p className="text-xs text-muted-foreground">{s.interview_type} • {s.difficulty_level}</p>
                   </div>
-                  <Badge variant="secondary" className="shrink-0 font-semibold">{s.score}%</Badge>
+                  <Badge variant="secondary" className="shrink-0 font-semibold">{Math.round(s.score)}%</Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No interviews yet. Start your first one!</p>
+            <p className="text-sm text-muted-foreground">{loading ? "Loading..." : "No interviews yet. Start your first one!"}</p>
           )}
         </Card>
       </div>
