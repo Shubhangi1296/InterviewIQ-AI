@@ -1,28 +1,24 @@
-import { Outlet } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useAuth } from "@/services/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 const DashboardLayout = () => {
-  const { user } = useAuth();
-  const [fullName, setFullName] = useState<string>("");
+  const navigate = useNavigate();
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setFullName(data?.full_name ?? ""));
-  }, [user]);
+    const raw = localStorage.getItem("iq_user");
+    if (!raw) {
+      navigate("/login");
+      return;
+    }
+    setUser(JSON.parse(raw));
+  }, [navigate]);
 
-  const display = fullName || user?.email?.split("@")[0] || "Candidate";
-  const initials = display.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+  const initials = user?.name?.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase() ?? "U";
 
   return (
     <SidebarProvider>
@@ -34,7 +30,7 @@ const DashboardLayout = () => {
               <SidebarTrigger />
               <div className="hidden md:block">
                 <p className="text-sm text-muted-foreground">Welcome back</p>
-                <p className="font-semibold -mt-0.5">{display}</p>
+                <p className="font-semibold -mt-0.5">{user?.name ?? "Candidate"}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

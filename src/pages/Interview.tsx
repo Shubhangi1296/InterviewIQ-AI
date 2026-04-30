@@ -7,18 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Lightbulb } from "lucide-react";
-import { generateQuestions, evaluateAnswer } from "@/lib/interview";
+import { generateQuestions, evaluateAnswer, saveSession, type InterviewSession } from "@/lib/interview";
 import { departments, type Department, type Role } from "@/lib/roles";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/services/auth";
-import { persistCompletedInterview } from "@/services/interviews";
 
 type Stage = "department" | "role" | "config" | "interview" | "results";
 type Feedback = ReturnType<typeof evaluateAnswer>;
 
 const Interview = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [stage, setStage] = useState<Stage>("department");
   const [department, setDepartment] = useState<Department | null>(null);
   const [role, setRole] = useState<Role | null>(null);
@@ -30,8 +27,6 @@ const Interview = () => {
   const [answers, setAnswers] = useState<string[]>([]);
   const [answer, setAnswer] = useState("");
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [saving, setSaving] = useState(false);
 
   const start = () => {
     if (!role) return;
@@ -44,7 +39,7 @@ const Interview = () => {
     setStage("interview");
   };
 
-  const submitAnswer = async () => {
+  const submitAnswer = () => {
     if (answer.trim().length < 10) {
       toast({ title: "Answer too short", description: "Please write at least a few sentences.", variant: "destructive" });
       return;
@@ -57,30 +52,18 @@ const Interview = () => {
     setAnswer("");
 
     if (current + 1 >= questions.length) {
-      if (user && role) {
-        setSaving(true);
-        try {
-          await persistCompletedInterview({
-            userId: user.id,
-            role: role.name,
-            fieldCategory: department?.name ?? null,
-            type,
-            difficulty,
-            questions: questions.map((text) => ({ text, type, difficulty })),
-            answers: nextAnswers,
-            feedbacks: nextFeedbacks.map((f) => ({
-              score: f.score,
-              feedback: f.suggestion,
-              strengths: f.strengths,
-              weaknesses: f.weaknesses,
-            })),
-          });
-        } catch (e) {
-          toast({ title: "Could not save session", description: (e as Error).message, variant: "destructive" });
-        } finally {
-          setSaving(false);
-        }
-      }
+      const avgScore = Math.round(nextFeedbacks.reduce((s, f) => s + f.score, 0) / nextFeedbacks.length);
+      const session: InterviewSession = {
+        id: crypto.randomUUID(),
+        role: role!.name,
+        type,
+        difficulty,
+        score: avgScore,
+        strengths: [...new Set(nextFeedbacks.flatMap((f) => f.strengths))],
+        weaknesses: [...new Set(nextFeedbacks.flatMap((f) => f.weaknesses))],
+        date: new Date().toISOString(),
+      };
+      saveSession(session);
       setStage("results");
     } else {
       setCurrent(current + 1);

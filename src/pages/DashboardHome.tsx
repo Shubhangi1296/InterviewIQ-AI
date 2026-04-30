@@ -1,70 +1,50 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Trophy, TrendingUp, Target, Flame, ArrowRight, Briefcase } from "lucide-react";
 import { findRole } from "@/lib/roles";
-import { useAuth } from "@/services/auth";
-import {
-  fetchUserSessions,
-  fetchUserPerformance,
-  type DbSession,
-  type DbPerformance,
-} from "@/services/interviews";
+import { getSessions } from "@/lib/interview";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid
 } from "recharts";
 
 const DashboardHome = () => {
-  const { user } = useAuth();
-  const [sessions, setSessions] = useState<DbSession[]>([]);
-  const [perf, setPerf] = useState<DbPerformance | null>(null);
-  const [loading, setLoading] = useState(true);
+  const sessions = getSessions();
 
-  useEffect(() => {
-    if (!user) return;
-    let alive = true;
-    (async () => {
-      try {
-        const [s, p] = await Promise.all([
-          fetchUserSessions(user.id),
-          fetchUserPerformance(user.id),
-        ]);
-        if (!alive) return;
-        setSessions(s);
-        setPerf(p);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [user?.id]);
-
-  const stats = useMemo(() => ({
-    avg: Math.round(perf?.average_score ?? 0),
-    count: perf?.total_sessions ?? sessions.length,
-    strength: perf?.strongest_area ?? "—",
-    weakness: perf?.weakest_area ?? "—",
-  }), [perf, sessions.length]);
+  const stats = useMemo(() => {
+    if (!sessions.length) return { avg: 0, count: 0, strength: "—", weakness: "—" };
+    const avg = Math.round(sessions.reduce((s, x) => s + x.score, 0) / sessions.length);
+    const freq = (arr: string[]) => {
+      const m: Record<string, number> = {};
+      arr.forEach((a) => (m[a] = (m[a] ?? 0) + 1));
+      return Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+    };
+    return {
+      avg,
+      count: sessions.length,
+      strength: freq(sessions.flatMap((s) => s.strengths)),
+      weakness: freq(sessions.flatMap((s) => s.weaknesses)),
+    };
+  }, [sessions]);
 
   const chartData = useMemo(() => {
     const last = [...sessions].reverse().slice(-10);
-    return last.map((s, i) => ({ name: `#${i + 1}`, score: Math.round(s.total_score ?? 0) }));
+    return last.map((s, i) => ({ name: `#${i + 1}`, score: s.score }));
   }, [sessions]);
 
   const byRole = useMemo(() => {
     const map: Record<string, { role: string; count: number; total: number; best: number }> = {};
     sessions.forEach((s) => {
       const k = s.role;
-      const score = s.total_score ?? 0;
       if (!map[k]) map[k] = { role: k, count: 0, total: 0, best: 0 };
       map[k].count += 1;
-      map[k].total += score;
-      map[k].best = Math.max(map[k].best, score);
+      map[k].total += s.score;
+      map[k].best = Math.max(map[k].best, s.score);
     });
     return Object.values(map)
-      .map((r) => ({ ...r, avg: Math.round(r.total / r.count), best: Math.round(r.best) }))
+      .map((r) => ({ ...r, avg: Math.round(r.total / r.count) }))
       .sort((a, b) => b.count - a.count);
   }, [sessions]);
 
@@ -77,6 +57,7 @@ const DashboardHome = () => {
 
   return (
     <div className="space-y-8 animate-fade-in-up">
+      {/* CTA hero */}
       <Card className="relative overflow-hidden p-8 bg-gradient-primary border-0 shadow-elegant">
         <div className="absolute inset-0 bg-gradient-mesh opacity-40" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -93,6 +74,7 @@ const DashboardHome = () => {
         </div>
       </Card>
 
+      {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s, i) => (
           <Card key={i} className="p-5 bg-gradient-card border-border/60 hover:shadow-card transition-smooth">
@@ -105,6 +87,7 @@ const DashboardHome = () => {
         ))}
       </div>
 
+      {/* Chart + recent */}
       <div className="grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 p-6 bg-gradient-card border-border/60">
           <div className="flex items-center justify-between mb-4">
@@ -138,7 +121,7 @@ const DashboardHome = () => {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                {loading ? "Loading..." : "Complete your first interview to see progress here."}
+                Complete your first interview to see progress here.
               </div>
             )}
           </div>
@@ -152,18 +135,19 @@ const DashboardHome = () => {
                 <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
                   <div className="min-w-0">
                     <p className="font-medium truncate">{s.role}</p>
-                    <p className="text-xs text-muted-foreground">{s.interview_type} • {s.difficulty_level}</p>
+                    <p className="text-xs text-muted-foreground">{s.type} • {s.difficulty}</p>
                   </div>
-                  <Badge variant="secondary" className="shrink-0 font-semibold">{Math.round(s.total_score ?? 0)}%</Badge>
+                  <Badge variant="secondary" className="shrink-0 font-semibold">{s.score}%</Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{loading ? "Loading..." : "No interviews yet. Start your first one!"}</p>
+            <p className="text-sm text-muted-foreground">No interviews yet. Start your first one!</p>
           )}
         </Card>
       </div>
 
+      {/* Per-role performance */}
       {byRole.length > 0 && (
         <Card className="p-6 bg-gradient-card border-border/60">
           <div className="flex items-center justify-between mb-4">

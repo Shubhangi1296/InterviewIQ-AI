@@ -7,47 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/ThemeProvider";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/services/auth";
-import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string }>({ name: "", email: "" });
 
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("profiles")
-      .select("full_name, email")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setFullName(data?.full_name ?? "");
-        setEmail(data?.email ?? user.email ?? "");
-      });
-  }, [user]);
+    const raw = localStorage.getItem("iq_user");
+    if (raw) setUser(JSON.parse(raw));
+  }, []);
 
-  const save = async () => {
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ full_name: fullName.trim().slice(0, 100) })
-      .eq("id", user.id);
-    setSaving(false);
-    if (error) {
-      toast({ title: "Could not save", description: error.message, variant: "destructive" });
-      return;
-    }
+  const save = () => {
+    localStorage.setItem("iq_user", JSON.stringify(user));
     toast({ title: "Profile saved" });
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  const signOut = () => {
+    localStorage.removeItem("iq_user");
     navigate("/");
   };
 
@@ -62,15 +39,13 @@ const Settings = () => {
         <h2 className="text-lg font-semibold">Profile</h2>
         <div className="space-y-2">
           <Label htmlFor="name">Full name</Label>
-          <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} />
+          <Input id="name" value={user.name} onChange={(e) => setUser({ ...user, name: e.target.value })} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} disabled />
+          <Input id="email" type="email" value={user.email} onChange={(e) => setUser({ ...user, email: e.target.value })} />
         </div>
-        <Button variant="hero" onClick={save} disabled={saving}>
-          {saving ? "Saving..." : "Save changes"}
-        </Button>
+        <Button variant="hero" onClick={save}>Save changes</Button>
       </Card>
 
       <Card className="p-6 bg-gradient-card border-border/60">
@@ -86,7 +61,7 @@ const Settings = () => {
 
       <Card className="p-6 bg-gradient-card border-border/60">
         <h2 className="text-lg font-semibold mb-4">Account</h2>
-        <Button variant="destructive" onClick={handleSignOut}>Sign out</Button>
+        <Button variant="destructive" onClick={signOut}>Sign out</Button>
       </Card>
     </div>
   );
